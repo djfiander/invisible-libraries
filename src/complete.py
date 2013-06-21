@@ -11,25 +11,29 @@ import xISBN
 
 def processfile(ifp, ocsv):
     icsv = csv.DictReader(ifp)
-    fields = ('title', 'author', 'year', 'publisher')
+    # xISBN fieldname: CSV file fieldname
+    move_corresponding = {'title': 'TITLE',
+                          'author': 'AUTHOR',
+                          'year': 'DATE',
+                          'publisher': 'PUBLISHER'}
     for rec in icsv:
         if rec['ISBN'] and not rec['TITLE']:
             # Fetch basic bib data from xISBN
             try:
-                bibdata = xISBN.get_metadata(rec['ISBN'], fields)
+                bibdata = xISBN.get_metadata(rec['ISBN'], move_corresponding.keys())
             except xISBN.BadISBN as error:
                 print >>sys.stderr, "Bad ISBN: %s: %s" % (rec['ISBN'], error)
+                bibdata = dict()
             except:
                 print >>sys.stderr, "Error processing %s" % rec['ISBN']
                 raise
-            for f in fields:
-                if f not in bibdata:
-                    bibdata[f] = ''
 
-            rec['TITLE'] = bibdata['title'].encode('latin_1')
-            rec['AUTHOR'] = bibdata['author'].encode('latin_1')
-            rec['DATE']  = bibdata['year']
-            rec['PUBLISHER'] = bibdata['publisher'].encode('latin_1')
+            for oclc_field, csv_field in move_corresponding.iteritems():
+                if oclc_field not in bibdata:
+                    rec[csv_field] = ''
+                else:
+                    # the CSV module can't handle unicode
+                    rec[csv_field] = bibdata[oclc_field].encode('utf_8')
 
         ocsv.writerow(rec)
 
@@ -37,7 +41,7 @@ outfile = None
 ofp = sys.stdout
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "o:")
+    opts, args = getopt.getopt(sys.argv[1:], "o:a:")
 except getopt.GetoptError:
     sys.stderr.write("Usage: %s [-o outfile] [infile]\n" % sys.argv[0])
     sys.exit(2)
@@ -45,6 +49,8 @@ except getopt.GetoptError:
 for o, a in opts:
     if o == '-o':
         ofp = open(a, "w")
+    elif o == '-a':
+        xISBN.register(a)
 
 ocsv = csv.DictWriter(ofp, ("ISBN","TITLE","AUTHOR","DATE","PUBLISHER"),
                       lineterminator='\n')
