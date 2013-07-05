@@ -3,7 +3,7 @@
 -- author names, ideally in the format provided
 -- by the LC name authority file.
 create table authors (
-       id integer primary key,
+       id integer primary key autoincrement,
        au_name text not NULL collate nocase
 );
 create index authors_index on authors(au_name);
@@ -12,7 +12,7 @@ create index authors_index on authors(au_name);
 -- field since there's not a lot of control over how publisher
 -- names are recorded.  We'll have to see how this works out
 create table publishers (
-       id integer primary key,
+       id integer primary key autoincrement,
        pub_name text not NULL collate nocase
 );
 create index publisher_index on publishers(pub_name);
@@ -21,7 +21,7 @@ create index publisher_index on publishers(pub_name);
 -- as well as a count of the number of copies, just in
 -- case that's interesting.
 create table books (
-       id integer primary key,
+       id integer primary key autoincrement,
        work_id references works(id)
        recorded_isbn references isbns(id),
        callno text,
@@ -40,12 +40,12 @@ create index books_title_index on books(title);
 create index books_publisher_index on books(publisher);
 
 create table works (
-       id integer primary key,
+       id integer primary key autoincrement,
        master references books(id),
 );
 
 create table isbns (
-       id integer primary key,
+       id integer primary key autoincrement,
        isbn text
 );
 
@@ -62,7 +62,7 @@ create index isbn_isbn_index on isbn_classes(isbn);
 -- Names of academic departments, to keep track of
 -- which departments we find a book in
 create table departments (
-       id integer primary key,
+       id integer primary key autoincrement,
        dept_name text not NULL collate nocase
 );
 create index department_index on departments(dept_name);
@@ -71,7 +71,7 @@ create index department_index on departments(dept_name);
 -- 	     OWN: we own this exact book (based on ISBN)
 --	     OWN_RELATED: we own a related copy (different ed, maybe)
 create table statuses (
-       id integer primary key,
+       id integer primary key autoincrement,
        status text not null
 );
 insert into statuses (status) values ('OWN');
