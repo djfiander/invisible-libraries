@@ -43,7 +43,7 @@ ofp = sys.stdout
 try:
     opts, args = getopt.getopt(sys.argv[1:], "o:a:")
 except getopt.GetoptError:
-    sys.stderr.write("Usage: %s [-o outfile] [infile]\n" % sys.argv[0])
+    sys.stderr.write("Usage: %s [-o outfile] [-a affiliateID] [infile]\n" % sys.argv[0])
     sys.exit(2)
 
 for o, a in opts:
