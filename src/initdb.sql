@@ -4,7 +4,7 @@
 -- by the LC name authority file.
 create table authors (
        id integer primary key autoincrement,
-       au_name text not NULL collate nocase
+       au_name text unique not NULL collate nocase
 );
 create index authors_index on authors(au_name);
 
@@ -22,7 +22,6 @@ create index publisher_index on publishers(pub_name);
 -- case that's interesting.
 create table books (
        id integer primary key autoincrement,
-       work_id references works(id)
        recorded_isbn references isbns(id),
        callno text,
        author integer references authors(id),
