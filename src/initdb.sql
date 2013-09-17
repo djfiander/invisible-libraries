@@ -4,7 +4,7 @@
 -- by the LC name authority file.
 create table authors (
        id integer primary key autoincrement,
-       au_name text not NULL collate nocase
+       au_name text unique not NULL collate nocase
 );
 create index authors_index on authors(au_name);
 
