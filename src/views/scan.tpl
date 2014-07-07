@@ -3,12 +3,14 @@
     <body>
 %if defined('error'):
         <p><strong>{{error}}</strong></p>
+	<audio src="/files/Plastic_Pipe.ogg" type="audio/ogg" autoplay="">
+	</audio>
 %end
 %if defined('title'):
 	<p>{{title}}</p>
 %end
 	<form action="/scan" method="post">
-	    ISBN: <input name="isbn" type="text" autofocus="autofocus" />
+	    <label for="isbn">ISBN</label>: <input name="isbn" type="text" autofocus="autofocus" />
 	    <input value="Scan" type="submit" />
 	</form>
     </body>
