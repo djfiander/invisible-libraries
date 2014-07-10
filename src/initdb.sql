@@ -1,5 +1,20 @@
 -- Initialize the tables for the Invisible Libraries project
 
+-- Different statuses that a book can be in in the Western catalogue:
+-- 	     OWN: we own this exact book (based on ISBN)
+--	     OWN_RELATED: we own a related copy (different ed, maybe)
+create table statuses (
+       id integer primary key autoincrement,
+       status text not null collate nocase,
+);
+insert into statuses (status) values ('OWN');
+insert into statuses (status) values ('OWN RELATED');
+insert into statuses (status) values ('UNOWNED');
+
+create table book_callnos (
+       book_id integer references books(id),
+       callno text
+);
 -- author names, ideally in the format provided
 -- by the LC name authority file.
 create table authors (
@@ -28,7 +43,7 @@ create table books (
        author integer references authors(id),
        title text,
        publisher integer references publishers(id),
-       numcopies integer,
+       numcopies integer default 1,
        pubdate text, -- integer?
        oclc_id text,
        uwo_status integer references statuses(id),
@@ -67,21 +82,6 @@ create table departments (
 );
 create index department_index on departments(dept_name);
 
--- Different statuses that a book can be in in the Western catalogue:
--- 	     OWN: we own this exact book (based on ISBN)
---	     OWN_RELATED: we own a related copy (different ed, maybe)
-create table statuses (
-       id integer primary key autoincrement,
-       status text not null
-);
-insert into statuses (status) values ('OWN');
-insert into statuses (status) values ('OWN RELATED');
-insert into statuses (status) values ('UNOWNED');
-
-create table book_callnos (
-       book_id integer references books(id),
-       callno text
-);
 create index book_callnos_index on book_callnos(book_id);
 
 create table book_depts (

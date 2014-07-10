@@ -35,12 +35,23 @@ def complete_rec(rec):
             rec[csv_field] = bibdata[oclc_field].encode("utf_8")
     return(rec)
 
-def insert_and_fetch_id(cur, stmt, values=None):
-    cur.execute(stmt, values)
-    cur.execute("SELECT last_insert_rowid() as id")
-    r = cur.fetchone()
-    return r["id"]
-    
+def check_holdings(conn, rec, rel_isbns):
+    status = None
+    if rec["ISBN"]:
+        res = conn.query("isbn=%(ISBN)s" % rec)
+        if len(res) > 0:
+            status = "OWN"
+        elif len(rel_isbns) > 0:
+            for isbn in rel_isbns:
+                res = conn.query("isbn=%s" % isbn)
+                if len(res) > 0:
+                    status = "OWN RELATED"
+                    break;
+    else:
+        pass
+
+    return status
+
 def find_or_add_author(db, author):
     with db:
         cur = db.cursor()
@@ -78,6 +89,27 @@ def add_book(db, conn, rec):
                                           "INSERT INTO isbns (isbn) VALUES (?)",
                                           (rec["ISBN"],))
             rel_isbns = xISBN.xISBN(rec["ISBN"]) 
+            cur.execute("INSERT INTO authors (au_name) VALUES (?)", (author,))
+            cur.execute("SELECT last_insert_rowid() AS id")
+            r = cur.fetchone()
+
+        cur.close()
+        return r["id"]
+            
+            
+book_insert_stmt = """
+INSERT INTO books (recorded_isbn, author, title,
+                    publisher, pubdate, uwo_status)
+SELECT ?, ?, ?, ?, ?, statuses.id FROM statuses WHERE status like ?
+"""
+
+def add_book(db, conn, rec):
+    rel_isbns = set()
+    with db:
+        cur = db.cursor()
+        if rec["ISBN"]:
+            cur.execute("INSERT INTO isbns (isbn) VALUES (?)", rec["ISBN"])
+            rel_isbns = xISBN.xISBN(rec["ISBN"]) 
             if (len(rel_isbns) > 0):
                 cur.executemany("INSERT INTO isbns (isbn) VALUES (?)",
                                 rel_isbns)
@@ -100,6 +132,20 @@ def add_book(db, conn, rec):
         catrec = check_catalogue(conn, rec, rel_isbns)
         cur.execute(book_insert_stmt, (isbn_id, au_id, rec["TITLE"],
                                        rec["PUBLISHER"], 1, rec["DATE"]))
+                            rec["ISBN"], rel_isbns)
+
+        if rec["ISBN"] and not rec["TITLE"]:
+            rec = complete_rec(rec)
+
+        if rec["AUTHOR"]:
+            au_id = find_or_add_author(rec["AUTHOR"])
+        else:
+            au_id = "NULL"
+
+        ownership = check_holdings(conn, rec, rel_isbns)
+        cur.execute(book_insert_stmt, (isbn_id, au_id, rec["TITLE"],
+                                       rec["PUBLISHER"], rec["DATE"],
+                                       ownership["status"]))
 
 def increment_copy_count(db, isbn_id):
     with db:
@@ -108,7 +154,29 @@ def increment_copy_count(db, isbn_id):
                      WHERE recorded_isbn LIKE ?", (isbn_id,))
         cur.close()
 
-def processFile(ifp, conn, db, checkxISBN=False):
+def processtitle(db, conn, rec):
+    pass
+
+def processISBN(db, conn, rec):
+    isbn = rec["ISBN"]
+    xISBN.validate(isbn)
+
+    # query DB to see if this ISBN has already been
+    # recorded if it has, then we don't need to find the
+    # related ISBNs but we might need to check the
+    # catalogue to see if we own this item
+
+    cur = db.cursor()
+    cur.execute("SELECT id FROM isbns WHERE isbn LIKE ?", (isbn,))
+    r = cur.fetchone()
+    if r is None:
+        # The ISBN has not been recorded. Add it
+        add_book(db, conn, rec)
+    else:
+        increment_copy_count(db, r["id"])
+    cur.close()
+
+def processFile(ifp, db, conn):
     global inlines, found
     icvs = csv.DictReader(ifp)
 
@@ -143,6 +211,15 @@ def processFile(ifp, conn, db, checkxISBN=False):
                 increment_copy_count(db, r["id"])
             cur.close()
 
+        if rec["ISBN"] != "":
+            try:
+                processISBN(db, conn, rec)
+            except xISBN.BadISBN as ex:
+                sys.stderr.write("Invalid ISBN for %s: '%s': %s\n" %
+                                 (rec["Title"], isbn, ex.args[0]))
+        else:
+            processtitle(db, conn, rec)
+                
 def main():
     host = "alpha.lib.uwo.ca"
     port = 210
@@ -185,7 +262,6 @@ def main():
         for fname in args:
             with open(fname, "r") as f:
                 processFile(f, conn, db, checkxISBN)
-                
 
     if verbose:
         sys.stderr.write("Processed %d titles and found %d with %d connections\n" %
